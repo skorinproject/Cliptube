@@ -46,13 +46,14 @@ def download_video():
     format_option = f"bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={quality}][ext=mp4]/best"
 
     cmd = [
-        "yt-dlp",
-        "--force-overwrites",
-        "-f", format_option,
-        "--download-sections", f"*{start_sec}-{end_sec}",
-        "-o", output_filepath,
-        url
-    ]
+    "yt-dlp",
+    "--extractor-args", "youtube:player_client=android,web",
+    "--force-overwrites",
+    "-f", format_option,
+    "--download-sections", f"*{start_sec}-{end_sec}",
+    "-o", output_filepath,
+    url
+]
 
     try:
         subprocess.run(cmd, check=True)
