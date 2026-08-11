@@ -48,7 +48,8 @@ def download_video():
     cmd = [
     "yt-dlp",
     "--cookies", "cookies.txt",
-    "--extractor-args", "youtube:player_client=android,web",
+    "--extractor-args", "youtube:player_client=mweb,android,web",
+    "--no-check-certificates",
     "--force-overwrites",
     "-f", format_option,
     "--download-sections", f"*{start_sec}-{end_sec}",
