@@ -1,0 +1,7 @@
+# Netscape HTTP Cookie File
+# https://curl.haxx.se/rfc/cookie_spec.html
+# This is a generated file! Do not edit.
+
+.youtube.com	TRUE	/	TRUE	1786378208	GPS	1
+.youtube.com	TRUE	/	TRUE	1820936550	PREF	tz=Asia.Jakarta
+.youtube.com	TRUE	/	TRUE	1786376659	YTSESSION-rvkia	ANPz9KhDpzgHcfvpyEUpDzUNtffcnBT1EcIfK9YDUUpt010F7iBOSpFMw5x+t0ud7GPY8DwHbvkoVjDI9LIf1k7kIt/O73hkslhmUB0+8k0Z+e5JUHeJrLURiP7TmgEY8w1fzR3E7wqayGe+mwj6YslbH1EnAzkMLGXxA4/4AcPxPbkeRDb9xSXmul5w443qs6IeyROfX3P9WAauE2bBx01Upq9BLGial18CSQcB5BovX84WyYEBgc8euvHwIh9WuDFoN6Fv/e4P7lXpdGe4F/w1sGESlNjLbfmrPlmweQh811utiwTDntaevQmULnwObjHG3X8b9bA/nmXwYqfLBTwU3K1OeGsKJTNG0/Hb3GvsEw==
