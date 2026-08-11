@@ -1,6 +1,8 @@
 import os
+import re
 import requests
 import subprocess
+from urllib.parse import urlparse, parse_qs
 from flask import Flask, render_template, request, jsonify, send_file
 
 app = Flask(__name__)
@@ -9,6 +11,18 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 # X-RAPIDAPI-KEY Kamu
 RAPIDAPI_KEY = "11ba0effc0mshde6232632e2c60fp1928f9jsnda8b4c26e9ef"
+
+def get_youtube_video_id(url):
+    """Fungsi fleksibel untuk mengambil Video ID dari berbagai jenis URL YouTube"""
+    parsed = urlparse(url)
+    if parsed.hostname in ['www.youtube.com', 'youtube.com']:
+        if parsed.path == '/watch':
+            return parse_qs(parsed.query).get('v', [None])[0]
+        elif parsed.path.startswith('/shorts/'):
+            return parsed.path.split('/')[2]
+    elif parsed.hostname == 'youtu.be':
+        return parsed.path[1:]
+    return None
 
 def parse_time_to_seconds(time_str):
     try:
@@ -37,6 +51,10 @@ def download_video():
     if not url or not start_time or not end_time:
         return jsonify({'error': 'URL, waktu mulai, dan waktu selesai harus diisi!'}), 400
 
+    video_id = get_youtube_video_id(url)
+    if not video_id:
+        return jsonify({'error': 'Format URL YouTube tidak valid/tidak dikenali.'}), 400
+
     start_sec = parse_time_to_seconds(start_time)
     end_sec = parse_time_to_seconds(end_time)
 
@@ -55,14 +73,11 @@ def download_video():
     }
     
     try:
-        # Ekstrak Video ID
-        video_id = url.split("v=")[-1].split("&")[0].split("/")[-1]
         response = requests.get(api_url, headers=headers, params={"videoId": video_id})
         res_data = response.json()
 
         stream_url = None
 
-        # Penelusuran format JSON fleksibel
         if "videos" in res_data and "items" in res_data["videos"]:
             for item in res_data["videos"]["items"]:
                 if "url" in item:
@@ -77,7 +92,7 @@ def download_video():
             stream_url = res_data["url"]
         
         if not stream_url:
-            return jsonify({'error': f'Format API tidak cocok atau kuota habis. Respon: {str(res_data)[:100]}'}), 500
+            return jsonify({'error': f'Gagal mendapatkan stream URL. Respon: {str(res_data)[:100]}'}), 500
 
     except Exception as e:
         return jsonify({'error': f'Gagal menghubungi API: {str(e)}'}), 500
@@ -108,4 +123,4 @@ def get_file(filename):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-    
+                    
