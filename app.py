@@ -47,7 +47,7 @@ def download_video():
     output_filename = f"video_trimmed_{start_sec}_{end_sec}.mp4"
     output_filepath = os.path.join(DOWNLOAD_FOLDER, output_filename)
 
-    # 1. Dapatkan Direct Stream URL via RapidAPI
+    # 1. Ambil Direct Stream URL via RapidAPI
     api_url = "https://youtube-media-downloader.p.rapidapi.com/v2/video/details"
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
@@ -55,23 +55,34 @@ def download_video():
     }
     
     try:
-        # Ambil Video ID dari link YouTube
+        # Ekstrak Video ID
         video_id = url.split("v=")[-1].split("&")[0].split("/")[-1]
         response = requests.get(api_url, headers=headers, params={"videoId": video_id})
         res_data = response.json()
 
-        # Ambil link stream video
         stream_url = None
-        if "videos" in res_data and "items" in res_data["videos"] and len(res_data["videos"]["items"]) > 0:
-            stream_url = res_data["videos"]["items"][0]["url"]
+
+        # Penelusuran format JSON fleksibel
+        if "videos" in res_data and "items" in res_data["videos"]:
+            for item in res_data["videos"]["items"]:
+                if "url" in item:
+                    stream_url = item["url"]
+                    break
+        elif "formats" in res_data:
+            for fmt in res_data["formats"]:
+                if "url" in fmt:
+                    stream_url = fmt["url"]
+                    break
+        elif "url" in res_data:
+            stream_url = res_data["url"]
         
         if not stream_url:
-            return jsonify({'error': 'Gagal mengambil link video dari YouTube API'}), 500
+            return jsonify({'error': f'Format API tidak cocok atau kuota habis. Respon: {str(res_data)[:100]}'}), 500
 
     except Exception as e:
         return jsonify({'error': f'Gagal menghubungi API: {str(e)}'}), 500
 
-    # 2. Potong Video menggunakan FFmpeg langsung dari Stream URL
+    # 2. Potong Video menggunakan FFmpeg
     cmd = [
         "ffmpeg",
         "-ss", str(start_sec),
@@ -97,4 +108,4 @@ def get_file(filename):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-                           
+    
