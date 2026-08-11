@@ -47,13 +47,15 @@ def download_video():
 
     cmd = [
     "yt-dlp",
+    "--cookies", "cookies.txt",
     "--extractor-args", "youtube:player_client=android,web",
     "--force-overwrites",
     "-f", format_option,
     "--download-sections", f"*{start_sec}-{end_sec}",
     "-o", output_filepath,
     url
-]
+ ]
+    
 
     try:
         subprocess.run(cmd, check=True)
