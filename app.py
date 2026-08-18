@@ -11,14 +11,18 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 RAPIDAPI_KEY = "11ba0effc0mshde6232632e2c60fp1928f9jsnda8b4c26e9ef"
 
 def get_youtube_video_id(url):
-    parsed = urlparse(url)
-    if parsed.hostname in ['www.youtube.com', 'youtube.com']:
+    if not url:
+        return None
+    parsed = urlparse(url.strip())
+    # Tangani format youtu.be/xxxx
+    if parsed.hostname == 'youtu.be':
+        return parsed.path.lstrip('/')
+    # Tangani format youtube.com/watch?v=xxxx
+    if parsed.hostname in ['www.youtube.com', 'youtube.com', 'm.youtube.com']:
         if parsed.path == '/watch':
             return parse_qs(parsed.query).get('v', [None])[0]
         elif parsed.path.startswith('/shorts/'):
             return parsed.path.split('/')[2]
-    elif parsed.hostname == 'youtu.be':
-        return parsed.path[1:]
     return None
 
 def parse_time_to_seconds(time_str):
@@ -27,7 +31,7 @@ def parse_time_to_seconds(time_str):
         if len(parts) == 3: return parts[0] * 3600 + parts[1] * 60 + parts[2]
         elif len(parts) == 2: return parts[0] * 60 + parts[1]
         elif len(parts) == 1: return parts[0]
-    except ValueError:
+    except Exception:
         return None
     return None
 
@@ -70,16 +74,21 @@ def download_video():
         res_data = response.json()
 
         stream_url = None
-        formats = res_data.get("formats", [])
         
+        # 1. Cari dulu dari 'videos' / 'formats' yang punya video + audio
+        formats = res_data.get("formats", []) or res_data.get("videos", {}).get("items", [])
+        
+        # Cari resolusi terbaik (1080p dulu, kalau tidak ada ambil kualitas teratas)
         for fmt in formats:
-            if "1080" in str(fmt.get("quality", "")):
+            q = str(fmt.get("quality", "") or fmt.get("resolution", ""))
+            if "1080" in q:
                 stream_url = fmt.get("url")
                 break
         
+        # Jika 1080p tidak ada, ambil format paling akhir yang tersedia
         if not stream_url and formats:
             stream_url = formats[-1].get("url")
-            
+
         if not stream_url:
             return jsonify({'error': 'Gagal mengambil link stream video.'}), 500
 
@@ -113,4 +122,4 @@ def get_file(filename):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-            
+    
