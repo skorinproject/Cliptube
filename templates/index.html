@@ -3,68 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClipTube - Pemotong Video YouTube</title>
+    <title>ClipTube UI Modern</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; text-align: center; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        input, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
-        button { background-color: #ff0000; color: white; font-weight: bold; border: none; cursor: pointer; }
-        button:disabled { background-color: #cccccc; }
-        #status { margin-top: 15px; font-weight: bold; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .card { background-color: #1e293b; padding: 30px; border-radius: 16px; width: 100%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h1 { color: #f97316; font-size: 28px; text-align: center; margin-bottom: 6px; font-weight: 700; }
+        p.subtitle { color: #94a3b8; text-align: center; font-size: 14px; margin-bottom: 24px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-size: 14px; margin-bottom: 8px; color: #cbd5e1; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background-color: #0f172a; color: #fff; font-size: 14px; outline: none; }
+        input:focus, select:focus { border-color: #f97316; }
+        .row { display: flex; gap: 12px; }
+        .row .form-group { flex: 1; }
+        button { width: 100%; padding: 14px; background-color: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        button:hover { background-color: #dc2626; }
+        #status { margin-top: 15px; text-align: center; font-size: 14px; font-weight: 600; }
+        .error { color: #f87171; }
+        .success { color: #4ade80; }
     </style>
 </head>
 <body>
+    <div class="card">
+        <h1>ClipTube UI Modern</h1>
+        <p class="subtitle">Potong & Unduh Bagian Video YouTube Kamu</p>
+        
+        <div class="form-group">
+            <label>URL Video YouTube</label>
+            <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=...">
+        </div>
+        
+        <div class="row">
+            <div class="form-group">
+                <label>Waktu Mulai</label>
+                <input type="text" id="start_time" placeholder="00:00:10">
+            </div>
+            <div class="form-group">
+                <label>Waktu Selesai</label>
+                <input type="text" id="end_time" placeholder="00:00:30">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Kualitas Video</label>
+            <select id="quality">
+                <option value="1080">1080p (Full HD)</option>
+                <option value="720">720p (HD)</option>
+                <option value="480">480p</option>
+                <option value="best">Kualitas Tertinggi Otomatis</option>
+            </select>
+        </div>
+        
+        <button onclick="processVideo()">Potong Video Sekarang</button>
+        <div id="status"></div>
+    </div>
 
-<div class="container">
-    <h2>ClipTube Video Trimmer</h2>
-    <input type="text" id="url" placeholder="Masukkan Link YouTube">
-    <input type="text" id="start" placeholder="Waktu Mulai (contoh: 00:10 atau 10)">
-    <input type="text" id="end" placeholder="Waktu Selesai (contoh: 00:30 atau 30)">
-    <button id="btn" onclick="processVideo()">Potong Video</button>
-    <div id="status"></div>
-</div>
+    <script>
+        async function processVideo() {
+            const status = document.getElementById('status');
+            status.className = '';
+            status.innerHTML = 'Sedang memproses video... Mohon tunggu.';
+            
+            const payload = {
+                url: document.getElementById('url').value,
+                start_time: document.getElementById('start_time').value,
+                end_time: document.getElementById('end_time').value,
+                quality: document.getElementById('quality').value
+            };
 
-<script>
-async function processVideo() {
-    const url = document.getElementById('url').value;
-    const start = document.getElementById('start').value;
-    const end = document.getElementById('end').value;
-    const status = document.getElementById('status');
-    const btn = document.getElementById('btn');
-
-    if (!url || !start || !end) {
-        status.innerText = "Semua kolom wajib diisi!";
-        status.style.color = "red";
-        return;
-    }
-
-    status.innerText = "Memproses video... Mohon tunggu.";
-    status.style.color = "blue";
-    btn.disabled = true;
-
-    try {
-        const response = await fetch('/download', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: url, start_time: start, end_time: end })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            status.innerHTML = `<a href="${data.download_url}" download style="color: green;">Klik di sini untuk mengunduh hasil video!</a>`;
-        } else {
-            status.innerText = data.error || "Terjadi kesalahan.";
-            status.style.color = "red";
+            try {
+                const res = await fetch('/download', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                if(res.ok) {
+                    status.className = 'success';
+                    status.innerHTML = `<a href="${data.download_url}" style="color:#4ade80;" download>Selesai! Klik di sini untuk mengunduh</a>`;
+                } else {
+                    status.className = 'error';
+                    status.innerHTML = data.error || 'Terjadi kesalahan.';
+                }
+            } catch(e) {
+                status.className = 'error';
+                status.innerHTML = 'Gagal terhubung ke server.';
+            }
         }
-    } catch (err) {
-        status.innerText = "Gagal terhubung ke server. Periksa koneksi internet kamu.";
-        status.style.color = "red";
-    } finally {
-        btn.disabled = false;
-    }
-}
-</script>
-
+    </script>
 </body>
 </html>
