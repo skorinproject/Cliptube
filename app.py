@@ -90,18 +90,17 @@ def download_video():
     except Exception as e:
         return jsonify({'error': f'Error API: {str(e)}'}), 500
 
-    # Potong presisi dengan FFmpeg
+    # Menggunakan mode copy presisi (Jauh lebih cepat di HP)
     cmd = [
         "ffmpeg", "-y",
         "-ss", str(start_sec),
+        "-to", str(end_sec),
         "-i", stream_url,
-        "-t", str(duration),
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-preset", "ultrafast",
+        "-c", "copy",
         "-avoid_negative_ts", "make_zero",
         output_filepath
     ]
+    
 
     try:
         subprocess.run(cmd, check=True)
