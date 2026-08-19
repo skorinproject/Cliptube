@@ -1,27 +1,10 @@
 import os
-import requests
 import subprocess
-from urllib.parse import urlparse, parse_qs
 from flask import Flask, render_template, request, jsonify, send_file
 
 app = Flask(__name__)
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
-
-RAPIDAPI_KEY = "11ba0effc0mshde6232632e2c60fp1928f9jsnda8b4c26e9ef"
-
-def get_youtube_video_id(url):
-    if not url: return None
-    url = url.strip()
-    parsed = urlparse(url)
-    if parsed.hostname == 'youtu.be':
-        return parsed.path.lstrip('/')
-    if parsed.hostname in ['www.youtube.com', 'youtube.com', 'm.youtube.com']:
-        if parsed.path == '/watch':
-            return parse_qs(parsed.query).get('v', [None])[0]
-        elif parsed.path.startswith('/shorts/'):
-            return parsed.path.split('/')[2]
-    return None
 
 def parse_time_to_seconds(time_str):
     try:
@@ -44,66 +27,33 @@ def download_video():
     start_time = data.get('start_time')
     end_time = data.get('end_time')
 
-    video_id = get_youtube_video_id(url)
-    if not video_id:
-        return jsonify({'error': 'URL YouTube tidak valid.'}), 400
+    if not url or not start_time or not end_time:
+        return jsonify({'error': 'URL dan waktu wajib diisi!'}), 400
 
     start_sec = parse_time_to_seconds(start_time)
     end_sec = parse_time_to_seconds(end_time)
 
     if start_sec is None or end_sec is None or start_sec >= end_sec:
-        return jsonify({'error': 'Format waktu salah!'}), 400
+        return jsonify({'error': 'Format waktu salah (Gunakan HH:MM:SS atau MM:SS)'}), 400
 
-    duration = end_sec - start_sec
     output_filename = f"clip_{start_sec}_{end_sec}.mp4"
     output_filepath = os.path.join(DOWNLOAD_FOLDER, output_filename)
 
-    api_url = "https://youtube-media-downloader.p.rapidapi.com/v2/video/details"
-    headers = {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
-    }
-
-    try:
-        response = requests.get(api_url, headers=headers, params={"videoId": video_id})
-        res_data = response.json()
-
-        stream_url = None
-        
-        # Priority 1: Ambil formats bertipe progressive (Video + Audio Gabung)
-        formats = res_data.get("formats", [])
-        for fmt in formats:
-            # Cari format yang punya gabungan video & audio (biasanya 720p/360p mp4)
-            if fmt.get("hasVideo") and fmt.get("hasAudio"):
-                stream_url = fmt.get("url")
-                break
-
-        # Priority 2: Jika tidak ada flag, ambil format paling stabil
-        if not stream_url and formats:
-            stream_url = formats[0].get("url")
-
-        if not stream_url:
-            return jsonify({'error': 'Gagal mengambil link stream video.'}), 500
-
-    except Exception as e:
-        return jsonify({'error': f'Error API: {str(e)}'}), 500
-
-    # Potong Kilat & Hemat Kuota (Langsung potong dari stream tanpa unduh penuh)
+    # yt-dlp memotong langsung dari server YouTube (Kilat, Hemat Kuota, Audio+Video 1080p Pas)
     cmd = [
-        "ffmpeg", "-y",
-        "-ss", str(start_sec),
-        "-i", stream_url,
-        "-t", str(duration),
-        "-c", "copy",
-        "-avoid_negative_ts", "make_zero",
-        output_filepath
+        "yt-dlp",
+        "-f", "bestvideo[height<=1080]+bestaudio/best",
+        "--download-sections", f"*{start_sec}-{end_sec}",
+        "--force-keyframes-at-cuts",
+        "-o", output_filepath,
+        url.strip()
     ]
 
     try:
         subprocess.run(cmd, check=True)
         return jsonify({'download_url': f'/get-file/{output_filename}'})
     except subprocess.CalledProcessError:
-        return jsonify({'error': 'Gagal memotong video.'}), 500
+        return jsonify({'error': 'Gagal mengambil video. Pastikan link YouTube benar.'}), 500
 
 @app.route('/get-file/<filename>')
 def get_file(filename):
