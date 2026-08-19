@@ -43,23 +43,21 @@ def download_video():
     url = data.get('url')
     start_time = data.get('start_time')
     end_time = data.get('end_time')
-    target_quality = data.get('quality', '1080')
 
     video_id = get_youtube_video_id(url)
     if not video_id:
-        return jsonify({'error': 'URL YouTube tidak valid. Pastikan diawali https://'}), 400
+        return jsonify({'error': 'URL YouTube tidak valid.'}), 400
 
     start_sec = parse_time_to_seconds(start_time)
     end_sec = parse_time_to_seconds(end_time)
 
     if start_sec is None or end_sec is None or start_sec >= end_sec:
-        return jsonify({'error': 'Format waktu salah (Gunakan HH:MM:SS atau MM:SS)'}), 400
+        return jsonify({'error': 'Format waktu salah!'}), 400
 
     duration = end_sec - start_sec
     output_filename = f"clip_{start_sec}_{end_sec}.mp4"
     output_filepath = os.path.join(DOWNLOAD_FOLDER, output_filename)
 
-    # Ambil link dari RapidAPI
     api_url = "https://youtube-media-downloader.p.rapidapi.com/v2/video/details"
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
@@ -71,42 +69,41 @@ def download_video():
         res_data = response.json()
 
         stream_url = None
-        formats = res_data.get("formats", []) or res_data.get("videos", {}).get("items", [])
         
-        # Cari kualitas sesuai pilihan pengguna
+        # Priority 1: Ambil formats bertipe progressive (Video + Audio Gabung)
+        formats = res_data.get("formats", [])
         for fmt in formats:
-            q = str(fmt.get("quality", "") or fmt.get("resolution", ""))
-            if target_quality in q:
+            # Cari format yang punya gabungan video & audio (biasanya 720p/360p mp4)
+            if fmt.get("hasVideo") and fmt.get("hasAudio"):
                 stream_url = fmt.get("url")
                 break
-        
-        # Jika tidak ketemu, pakai kualitas terbaik yang tersedia
+
+        # Priority 2: Jika tidak ada flag, ambil format paling stabil
         if not stream_url and formats:
-            stream_url = formats[-1].get("url")
+            stream_url = formats[0].get("url")
 
         if not stream_url:
-            return jsonify({'error': 'Gagal mengambil stream video dari API.'}), 500
+            return jsonify({'error': 'Gagal mengambil link stream video.'}), 500
 
     except Exception as e:
         return jsonify({'error': f'Error API: {str(e)}'}), 500
 
-    # Menggunakan mode copy presisi (Jauh lebih cepat di HP)
+    # Potong Kilat & Hemat Kuota (Langsung potong dari stream tanpa unduh penuh)
     cmd = [
         "ffmpeg", "-y",
         "-ss", str(start_sec),
-        "-to", str(end_sec),
         "-i", stream_url,
+        "-t", str(duration),
         "-c", "copy",
         "-avoid_negative_ts", "make_zero",
         output_filepath
     ]
-    
 
     try:
         subprocess.run(cmd, check=True)
         return jsonify({'download_url': f'/get-file/{output_filename}'})
     except subprocess.CalledProcessError:
-        return jsonify({'error': 'Gagal memotong video dengan FFmpeg.'}), 500
+        return jsonify({'error': 'Gagal memotong video.'}), 500
 
 @app.route('/get-file/<filename>')
 def get_file(filename):
@@ -117,4 +114,4 @@ def get_file(filename):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-                
+    
